@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>Сканер штрихкодов + n8n</title>
-    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -61,11 +60,6 @@
             background: white;
             transition: 0.2s;
         }
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
-        }
         button {
             background: #3b82f6;
             border: none;
@@ -76,14 +70,8 @@
             font-size: 0.95rem;
             cursor: pointer;
             transition: 0.2s;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
-        button:active {
-            transform: scale(0.97);
-        }
-        .btn-secondary {
-            background: #64748b;
-        }
+        button:active { transform: scale(0.97); }
         .btn-outline {
             background: white;
             border: 1px solid #cbd5e1;
@@ -100,23 +88,17 @@
             border-radius: 24px;
             padding: 16px;
             margin-top: 24px;
-            word-break: break-word;
             font-size: 0.9rem;
             color: #0f172a;
             border: 1px solid #e2e8f0;
+            white-space: pre-wrap;
+            font-family: monospace;
         }
-        .error {
-            color: #b91c1c;
-            background: #fee2e2;
-            border-color: #fecaca;
-        }
-        .success {
-            color: #166534;
-            background: #dcfce7;
-            border-color: #bbf7d0;
-        }
-        /* Модальное окно добавления */
-        .modal, .confirm-modal {
+        .error { color: #b91c1c; background: #fee2e2; border-color: #fecaca; }
+        .success { color: #166534; background: #dcfce7; border-color: #bbf7d0; }
+        
+        /* Модалки */
+        .modal {
             display: none;
             position: fixed;
             top: 0; left: 0;
@@ -134,9 +116,6 @@
             padding: 24px;
             box-shadow: 0 20px 35px -10px black;
         }
-        .modal-content h3 {
-            margin-top: 0;
-        }
         .modal-content input {
             width: 100%;
             margin-bottom: 12px;
@@ -150,7 +129,8 @@
             gap: 10px;
             margin-top: 20px;
         }
-        /* Видео на весь экран с пропорциями 16:9 */
+        
+        /* Видео на весь экран с contain */
         .video-preview {
             position: fixed;
             top: 0;
@@ -164,21 +144,12 @@
             justify-content: center;
             align-items: center;
         }
-        #interactive {
+        #scanner-video {
             width: 100%;
+            height: 100%;
+            object-fit: contain;
             background: black;
         }
-        /* Контейнер для видео с соотношением 16:9 */
-        .video-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 100%;
-            background: black;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        /* Кнопка выхода из камеры (плавающая) */
         .close-camera-btn {
             position: fixed;
             top: 20px;
@@ -197,16 +168,9 @@
             cursor: pointer;
             z-index: 1200;
             border: 1px solid rgba(255,255,255,0.3);
-            transition: 0.2s;
-        }
-        .close-camera-btn:hover {
-            background: rgba(0,0,0,0.8);
-            transform: scale(1.05);
         }
         @media (max-width: 500px) {
-            body { padding: 12px; }
-            .container { padding: 18px; }
-            .close-camera-btn { width: 40px; height: 40px; font-size: 24px; top: 12px; right: 12px; }
+            .close-camera-btn { width: 40px; height: 40px; font-size: 24px; }
         }
     </style>
 </head>
@@ -239,20 +203,15 @@
     <div class="modal-content">
         <h3>➕ Добавить товар</h3>
         <label>Штрихкод (основной)</label>
-        <input type="text" id="addBarcode" placeholder="Штрихкод" readonly style="background:#f1f5f9;">
-        
-        <label>Штрихкод коробки (опционально)</label>
+        <input type="text" id="addBarcode" readonly style="background:#f1f5f9;">
+        <label>Штрихкод коробки</label>
         <input type="text" id="addBoxBarcode" placeholder="Код коробки">
-        
         <label>Название *</label>
         <input type="text" id="addName" placeholder="Например: Молоко">
-        
         <label>Модель</label>
         <input type="text" id="addModel" placeholder="Модель / артикул">
-        
         <label>Количество *</label>
-        <input type="number" id="addQuantity" placeholder="Число" value="1">
-        
+        <input type="number" id="addQuantity" value="1">
         <div class="modal-buttons">
             <button id="modalCancel" class="btn-outline">Отмена</button>
             <button id="modalSubmit" style="background:#10b981;">Сохранить</button>
@@ -261,28 +220,28 @@
 </div>
 
 <!-- Модалка подтверждения сканирования -->
-<div id="confirmScanModal" class="confirm-modal">
+<div id="confirmModal" class="modal">
     <div class="modal-content">
         <h3>📸 Подтверждение кода</h3>
         <p>Считан код:</p>
-        <p id="pendingCode" style="font-weight: bold; font-size: 1.2rem; word-break: break-all;"></p>
+        <p id="pendingCode" style="font-weight: bold; font-size: 1.2rem;"></p>
         <div class="modal-buttons">
-            <button id="rejectCodeBtn" class="btn-outline">❌ Отменить</button>
-            <button id="acceptCodeBtn" style="background:#3b82f6;">✅ Использовать</button>
+            <button id="rejectBtn" class="btn-outline">❌ Отменить</button>
+            <button id="acceptBtn" style="background:#3b82f6;">✅ Использовать</button>
         </div>
     </div>
 </div>
 
-<!-- Видео-контейнер для камеры -->
+<!-- Видео-контейнер -->
 <div id="cameraView" class="video-preview">
-    <div class="video-wrapper" id="interactive"></div>
+    <video id="scanner-video" autoplay playsinline></video>
     <div id="closeCameraBtn" class="close-camera-btn">✕</div>
 </div>
 
 <script>
-    // ⚠️ ЗАМЕНИТЕ НА ВАШИ АДРЕСА ВЕБХУКОВ n8n ⚠️
-    const WEBHOOK_SEARCH = "https://din8n.ru/webhook-test/357fd427-59db-4b27-86c0-dbdd586e0dc6";   // заменить!
-    const WEBHOOK_ADD = "https://ваш-сервер.com/webhook-add";         // заменить!
+    // === НАСТРОЙКИ (ЗАМЕНИТЕ НА ВАШИ URL) ===
+    const WEBHOOK_SEARCH = "https://ваш-сервер.com/webhook-search";
+    const WEBHOOK_ADD = "https://ваш-сервер.com/webhook-add";
 
     // DOM элементы
     const barcodeInput = document.getElementById('barcodeInput');
@@ -292,20 +251,16 @@
     const resultBlock = document.getElementById('resultBlock');
     const addModal = document.getElementById('addModal');
     const cameraDiv = document.getElementById('cameraView');
-    const confirmModal = document.getElementById('confirmScanModal');
+    const confirmModal = document.getElementById('confirmModal');
     const pendingCodeSpan = document.getElementById('pendingCode');
-    
-    let scannerActive = false;
-    let lastDetectedCode = null; // для хранения кода перед подтверждением
+    const video = document.getElementById('scanner-video');
 
-    // Поля модалки добавления
-    const addBarcode = document.getElementById('addBarcode');
-    const addBoxBarcode = document.getElementById('addBoxBarcode');
-    const addName = document.getElementById('addName');
-    const addModel = document.getElementById('addModel');
-    const addQuantity = document.getElementById('addQuantity');
+    let stream = null;
+    let barcodeDetector = null;
+    let scanningActive = false;
+    let currentPendingCode = null;
 
-    // Функция показа сообщений
+    // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
     function showMessage(text, isError = false, isSuccess = false) {
         resultBlock.textContent = text;
         resultBlock.classList.remove('error', 'success');
@@ -313,125 +268,131 @@
         else if (isSuccess) resultBlock.classList.add('success');
     }
 
-    // Остановка камеры
-    function stopCamera() {
-        if (scannerActive) {
-            Quagga.stop();
-            scannerActive = false;
+    function formatSearchResult(data) {
+        // data содержит русские ключи: Штрихкод, Название товара, Артикул, Кол-во в коробке
+        let lines = [];
+        if (data["Штрихкод"]) lines.push(`Штрихкод: ${data["Штрихкод"]}`);
+        if (data["Название товара"]) lines.push(`Название товара: ${data["Название товара"]}`);
+        if (data["Артикул"]) lines.push(`Артикул: ${data["Артикул"]}`);
+        if (data["Кол-во в коробке"] !== undefined) lines.push(`Кол-во в коробке: ${data["Кол-во в коробке"]}`);
+        return lines.join('\n');
+    }
+
+    // === ОСТАНОВКА КАМЕРЫ ===
+    async function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
         }
+        scanningActive = false;
         cameraDiv.style.display = 'none';
-        // закрываем модалку подтверждения, если открыта
-        confirmModal.style.display = 'none';
-        lastDetectedCode = null;
-    }
-
-    // Запуск сканера
-    function startScanner() {
-        if (scannerActive) {
-            stopCamera();
-            setTimeout(() => initQuagga(), 300);
-        } else {
-            initQuagga();
+        video.srcObject = null;
+        if (barcodeDetector) {
+            // отключаем детектор, он продолжит попытки, но видео уже нет
         }
     }
 
-    // Проверка минимальной длины (фильтр)
-    function isValidBarcode(code) {
-        if (!code) return false;
-        // EAN-13: 13 цифр
-        if (/^\d{13}$/.test(code)) return true;
-        // Code128: обычно от 6 до 20 символов (буквы+цифры)
-        if (code.length >= 6 && code.length <= 30) return true;
-        // Дополнительно: можно добавить EAN-8
-        if (/^\d{8}$/.test(code)) return true;
-        return false;
+    // === ЗАПУСК СКАНЕРА С СОВРЕМЕННЫМ API ===
+    async function startScanner() {
+        if (scanningActive) {
+            await stopCamera();
+            // небольшой таймаут перед повторным запуском
+            setTimeout(() => initScanner(), 300);
+        } else {
+            await initScanner();
+        }
     }
 
-    // Обработчик считывания Quagga с фильтром и подтверждением
-    function onDetected(result) {
-        if (!scannerActive) return;
-        const code = result.codeResult.code;
-        if (!code) return;
-        
-        // Фильтр по длине
-        if (!isValidBarcode(code)) {
-            // Игнорируем ложный код, но не закрываем камеру
-            console.log("Игнорирован код (неверная длина):", code);
+    async function initScanner() {
+        // Проверяем поддержку BarcodeDetector
+        if (!('BarcodeDetector' in window)) {
+            showMessage("Ваш браузер не поддерживает сканирование штрихкодов. Обновите Chrome/Edge/Safari.", true);
             return;
         }
-        
-        // Приостанавливаем распознавание, пока пользователь не подтвердит
-        if (scannerActive) {
-            Quagga.pause();
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            // Предпочитаем заднюю камеру
+            let backCamera = videoDevices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
+            const cameraId = backCamera ? backCamera.deviceId : videoDevices[0]?.deviceId;
+            
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: cameraId ? { exact: cameraId } : undefined, facingMode: 'environment' }
+            });
+            video.srcObject = stream;
+            await video.play();
+            cameraDiv.style.display = 'flex';
+            scanningActive = true;
+
+            // Создаём детектор
+            barcodeDetector = new BarcodeDetector({ formats: ['ean_13', 'code_128', 'ean_8', 'code_39', 'qr_code'] });
+            requestAnimationFrame(scanFrame);
+        } catch (err) {
+            console.error(err);
+            showMessage("Ошибка доступа к камере: " + err.message, true);
+            stopCamera();
         }
-        lastDetectedCode = code;
-        pendingCodeSpan.textContent = code;
-        confirmModal.style.display = 'flex';
     }
 
-    function initQuagga() {
-        cameraDiv.style.display = 'flex';
-        // Очищаем wrapper
-        const wrapper = document.querySelector('#interactive');
-        wrapper.innerHTML = '';
-        
-        Quagga.init({
-            inputStream: {
-                name: "Live",
-                type: "LiveStream",
-                target: wrapper,
-                constraints: {
-                    facingMode: "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+    async function scanFrame() {
+        if (!scanningActive || !video.videoWidth) {
+            if (scanningActive) requestAnimationFrame(scanFrame);
+            return;
+        }
+        try {
+            const barcodes = await barcodeDetector.detect(video);
+            if (barcodes.length > 0) {
+                const code = barcodes[0].rawValue;
+                if (code && code !== currentPendingCode) {
+                    // Найден код – останавливаем распознавание и показываем модалку
+                    scanningActive = false;
+                    currentPendingCode = code;
+                    pendingCodeSpan.textContent = code;
+                    confirmModal.style.display = 'flex';
+                    // Приостанавливаем видео? Нет, пусть висит, но детектор больше не вызываем, пока не закроют модалку.
+                    return;
                 }
-            },
-            decoder: {
-                readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader"]
             }
-        }, function(err) {
-            if (err) {
-                console.error(err);
-                showMessage("Ошибка доступа к камере: " + err, true);
-                stopCamera();
-                return;
-            }
-            scannerActive = true;
-            Quagga.start();
-            // Добавляем обработчик
-            Quagga.onDetected(onDetected);
-        });
+        } catch(e) { console.warn(e); }
+        if (scanningActive) requestAnimationFrame(scanFrame);
     }
 
     // Подтверждение кода
-    document.getElementById('acceptCodeBtn').addEventListener('click', () => {
-        if (lastDetectedCode) {
-            barcodeInput.value = lastDetectedCode;
-            showMessage(`✅ Считан код: ${lastDetectedCode}`, false);
-            stopCamera(); // закрываем камеру после подтверждения
+    document.getElementById('acceptBtn').onclick = () => {
+        if (currentPendingCode) {
+            barcodeInput.value = currentPendingCode;
+            showMessage(`✅ Считан код: ${currentPendingCode}`, false);
         }
         confirmModal.style.display = 'none';
-        lastDetectedCode = null;
-    });
-
-    // Отмена (игнорируем код и продолжаем сканирование)
-    document.getElementById('rejectCodeBtn').addEventListener('click', () => {
+        currentPendingCode = null;
+        stopCamera();
+    };
+    document.getElementById('rejectBtn').onclick = () => {
         confirmModal.style.display = 'none';
-        lastDetectedCode = null;
-        if (scannerActive) {
-            Quagga.resume();
-        } else {
-            // Если камера почему-то не активна, перезапускаем
+        currentPendingCode = null;
+        // Перезапускаем сканирование (оставляем камеру открытой)
+        if (stream && !scanningActive) {
+            scanningActive = true;
+            requestAnimationFrame(scanFrame);
+        } else if (!stream) {
             startScanner();
         }
+    };
+    // Закрытие модалки по клику вне
+    confirmModal.addEventListener('click', (e) => {
+        if (e.target === confirmModal) {
+            confirmModal.style.display = 'none';
+            currentPendingCode = null;
+            if (stream && !scanningActive) {
+                scanningActive = true;
+                requestAnimationFrame(scanFrame);
+            }
+        }
     });
 
-    // Поиск (адаптирован под русские ключи)
+    // === ПОИСК ===
     async function searchBarcode(barcode) {
-        if (!barcode) {
-            showMessage("Введите или считайте штрихкод", true);
-            return;
-        }
+        if (!barcode) { showMessage("Введите или считайте штрихкод", true); return; }
         showMessage("Поиск...", false);
         try {
             const response = await fetch(WEBHOOK_SEARCH, {
@@ -440,15 +401,12 @@
                 body: JSON.stringify({ barcode: barcode })
             });
             const data = await response.json();
-            // Проверяем наличие русского поля "Штрихкод" как признак успеха
             if (data && data["Штрихкод"]) {
-                let info = `🔍 Найдено:\nШтрихкод: ${data["Штрихкод"]}\n`;
-                if (data["Название товара"]) info += `Название: ${data["Название товара"]}\n`;
-                if (data["Артикул"]) info += `Модель/Артикул: ${data["Артикул"]}\n`;
-                if (data["Кол-во в коробке"] !== undefined) info += `Кол-во в коробке: ${data["Кол-во в коробке"]}`;
-                showMessage(info, false);
-            } else if (data.found === true) { // fallback на латиницу
-                let info = `🔍 Найдено:\nШтрихкод: ${data.barcode || barcode}\n`;
+                const formatted = formatSearchResult(data);
+                showMessage(formatted, false);
+            } else if (data.found === true) {
+                // fallback на латиницу
+                let info = `Штрихкод: ${data.barcode || barcode}\n`;
                 if (data.name) info += `Название: ${data.name}\n`;
                 if (data.model) info += `Модель: ${data.model}\n`;
                 if (data.quantity !== undefined) info += `Количество: ${data.quantity}`;
@@ -457,12 +415,11 @@
                 showMessage(`❌ ${data.message || "Штрихкод не найден"}`, true);
             }
         } catch (err) {
-            console.error(err);
-            showMessage("Ошибка соединения с сервером. Проверьте CORS и адрес вебхука.", true);
+            showMessage("Ошибка соединения. Проверьте CORS и адрес вебхука.", true);
         }
     }
 
-    // Добавление (латинские ключи, как было)
+    // === ДОБАВЛЕНИЕ ===
     async function addBarcodeToDB(payload) {
         try {
             const response = await fetch(WEBHOOK_ADD, {
@@ -471,99 +428,53 @@
                 body: JSON.stringify(payload)
             });
             const data = await response.json();
-            if (data.success === true || (data.success === undefined && !data.error)) {
-                showMessage(`✅ Товар успешно добавлен! Код: ${payload.barcode}`, false, true);
+            if (data.success === true || (!data.error && data.success !== false)) {
+                showMessage(`✅ Товар добавлен! Код: ${payload.barcode}`, false, true);
                 barcodeInput.value = '';
                 addModal.style.display = 'none';
-                addBoxBarcode.value = '';
-                addName.value = '';
-                addModel.value = '';
-                addQuantity.value = '1';
+                document.getElementById('addBoxBarcode').value = '';
+                document.getElementById('addName').value = '';
+                document.getElementById('addModel').value = '';
+                document.getElementById('addQuantity').value = '1';
             } else {
-                showMessage(`Ошибка добавления: ${data.error || "неизвестная ошибка"}`, true);
+                showMessage(`Ошибка: ${data.error || "неизвестная"}`, true);
             }
-        } catch (err) {
-            console.error(err);
-            showMessage("Ошибка соединения при добавлении. Проверьте CORS и адрес вебхука.", true);
+        } catch(err) {
+            showMessage("Ошибка соединения при добавлении.", true);
         }
     }
 
-    // Обработчики кнопок
-    searchBtn.addEventListener('click', () => {
-        const barcode = barcodeInput.value.trim();
-        searchBarcode(barcode);
-    });
-
-    addBtn.addEventListener('click', () => {
-        const currentBarcode = barcodeInput.value.trim();
-        if (!currentBarcode) {
-            showMessage("Сначала считайте или введите штрихкод для добавления", true);
-            return;
-        }
-        addBarcode.value = currentBarcode;
-        addBoxBarcode.value = '';
-        addName.value = '';
-        addModel.value = '';
-        addQuantity.value = '1';
+    // === ОБРАБОТЧИКИ КНОПОК ===
+    searchBtn.onclick = () => searchBarcode(barcodeInput.value.trim());
+    addBtn.onclick = () => {
+        const cur = barcodeInput.value.trim();
+        if (!cur) { showMessage("Сначала считайте или введите штрихкод", true); return; }
+        document.getElementById('addBarcode').value = cur;
+        document.getElementById('addBoxBarcode').value = '';
+        document.getElementById('addName').value = '';
+        document.getElementById('addModel').value = '';
+        document.getElementById('addQuantity').value = '1';
         addModal.style.display = 'flex';
-    });
-
-    document.getElementById('modalSubmit').addEventListener('click', () => {
-        const barcode = addBarcode.value.trim();
-        const boxBarcode = addBoxBarcode.value.trim();
-        const name = addName.value.trim();
-        const model = addModel.value.trim();
-        let quantity = parseInt(addQuantity.value, 10);
-        if (isNaN(quantity)) quantity = 0;
-
-        if (!barcode) {
-            showMessage("Штрихкод обязателен", true);
-            return;
-        }
-        if (!name) {
-            showMessage("Название товара обязательно", true);
-            return;
-        }
-        if (quantity < 0) {
-            showMessage("Количество не может быть отрицательным", true);
-            return;
-        }
-
-        const payload = {
-            barcode: barcode,
-            box_barcode: boxBarcode || "",
-            name: name,
-            model: model || "",
-            quantity: quantity
-        };
-        addBarcodeToDB(payload);
-    });
-
-    document.getElementById('modalCancel').addEventListener('click', () => {
-        addModal.style.display = 'none';
-    });
-    addModal.addEventListener('click', (e) => {
-        if (e.target === addModal) addModal.style.display = 'none';
-    });
-    // Закрытие модалки подтверждения по клику вне
-    confirmModal.addEventListener('click', (e) => {
-        if (e.target === confirmModal) {
-            confirmModal.style.display = 'none';
-            if (scannerActive) Quagga.resume();
-            lastDetectedCode = null;
-        }
-    });
-
-    scanBtn.addEventListener('click', () => {
-        startScanner();
-    });
-    document.getElementById('closeCameraBtn').addEventListener('click', () => {
-        stopCamera();
-    });
+    };
+    document.getElementById('modalSubmit').onclick = () => {
+        const b = document.getElementById('addBarcode').value.trim();
+        const box = document.getElementById('addBoxBarcode').value.trim();
+        const name = document.getElementById('addName').value.trim();
+        const model = document.getElementById('addModel').value.trim();
+        let qty = parseInt(document.getElementById('addQuantity').value, 10);
+        if (isNaN(qty)) qty = 0;
+        if (!b) { showMessage("Штрихкод обязателен", true); return; }
+        if (!name) { showMessage("Название обязательно", true); return; }
+        addBarcodeToDB({ barcode: b, box_barcode: box, name: name, model: model, quantity: qty });
+    };
+    document.getElementById('modalCancel').onclick = () => addModal.style.display = 'none';
+    addModal.addEventListener('click', (e) => { if (e.target === addModal) addModal.style.display = 'none'; });
+    scanBtn.onclick = () => startScanner();
+    document.getElementById('closeCameraBtn').onclick = () => stopCamera();
 
     window.addEventListener('load', () => {
         barcodeInput.value = '';
-        showMessage("Готов к работе. Нажмите «Сканировать»", false);
+        showMessage("Готов. Нажмите «Сканировать»", false);
     });
 </script>
 </body>
