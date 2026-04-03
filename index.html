@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>Сканер штрихкодов + n8n</title>
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -130,7 +131,7 @@
             margin-top: 20px;
         }
         
-        /* Видео на весь экран с contain */
+        /* Видео на весь экран */
         .video-preview {
             position: fixed;
             top: 0;
@@ -140,15 +141,24 @@
             background: black;
             z-index: 1100;
             display: none;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
         }
-        #scanner-video {
+        /* Контейнер для Quagga */
+        #interactive {
             width: 100%;
             height: 100%;
+            position: relative;
+        }
+        /* Стили для видео и canvas, которые создаёт Quagga */
+        #interactive video,
+        #interactive canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
             object-fit: contain;
-            background: black;
         }
         .close-camera-btn {
             position: fixed;
@@ -232,9 +242,9 @@
     </div>
 </div>
 
-<!-- Видео-контейнер -->
+<!-- Видео-контейнер для Quagga -->
 <div id="cameraView" class="video-preview">
-    <video id="scanner-video" autoplay playsinline></video>
+    <div id="interactive"></div>
     <div id="closeCameraBtn" class="close-camera-btn">✕</div>
 </div>
 
@@ -253,14 +263,11 @@
     const cameraDiv = document.getElementById('cameraView');
     const confirmModal = document.getElementById('confirmModal');
     const pendingCodeSpan = document.getElementById('pendingCode');
-    const video = document.getElementById('scanner-video');
 
-    let stream = null;
-    let barcodeDetector = null;
-    let scanningActive = false;
+    let scannerActive = false;
     let currentPendingCode = null;
 
-    // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+    // === ФУНКЦИИ ===
     function showMessage(text, isError = false, isSuccess = false) {
         resultBlock.textContent = text;
         resultBlock.classList.remove('error', 'success');
@@ -269,7 +276,6 @@
     }
 
     function formatSearchResult(data) {
-        // data содержит русские ключи: Штрихкод, Название товара, Артикул, Кол-во в коробке
         let lines = [];
         if (data["Штрихкод"]) lines.push(`Штрихкод: ${data["Штрихкод"]}`);
         if (data["Название товара"]) lines.push(`Название товара: ${data["Название товара"]}`);
@@ -279,82 +285,77 @@
     }
 
     // === ОСТАНОВКА КАМЕРЫ ===
-    async function stopCamera() {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
+    function stopCamera() {
+        if (scannerActive) {
+            Quagga.stop();
+            scannerActive = false;
         }
-        scanningActive = false;
         cameraDiv.style.display = 'none';
-        video.srcObject = null;
-        if (barcodeDetector) {
-            // отключаем детектор, он продолжит попытки, но видео уже нет
-        }
+        // Очищаем контейнер Quagga, чтобы не оставалось видео
+        const interactive = document.getElementById('interactive');
+        if (interactive) interactive.innerHTML = '';
+        confirmModal.style.display = 'none';
+        currentPendingCode = null;
     }
 
-    // === ЗАПУСК СКАНЕРА С СОВРЕМЕННЫМ API ===
-    async function startScanner() {
-        if (scanningActive) {
-            await stopCamera();
-            // небольшой таймаут перед повторным запуском
-            setTimeout(() => initScanner(), 300);
-        } else {
-            await initScanner();
-        }
-    }
-
-    async function initScanner() {
-        // Проверяем поддержку BarcodeDetector
-        if (!('BarcodeDetector' in window)) {
-            showMessage("Ваш браузер не поддерживает сканирование штрихкодов. Обновите Chrome/Edge/Safari.", true);
-            return;
-        }
-        try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter(d => d.kind === 'videoinput');
-            // Предпочитаем заднюю камеру
-            let backCamera = videoDevices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
-            const cameraId = backCamera ? backCamera.deviceId : videoDevices[0]?.deviceId;
-            
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { deviceId: cameraId ? { exact: cameraId } : undefined, facingMode: 'environment' }
-            });
-            video.srcObject = stream;
-            await video.play();
-            cameraDiv.style.display = 'flex';
-            scanningActive = true;
-
-            // Создаём детектор
-            barcodeDetector = new BarcodeDetector({ formats: ['ean_13', 'code_128', 'ean_8', 'code_39', 'qr_code'] });
-            requestAnimationFrame(scanFrame);
-        } catch (err) {
-            console.error(err);
-            showMessage("Ошибка доступа к камере: " + err.message, true);
+    // === ЗАПУСК СКАНЕРА (QUAGGA) ===
+    function startScanner() {
+        if (scannerActive) {
             stopCamera();
+            setTimeout(() => initQuagga(), 300);
+        } else {
+            initQuagga();
         }
     }
 
-    async function scanFrame() {
-        if (!scanningActive || !video.videoWidth) {
-            if (scanningActive) requestAnimationFrame(scanFrame);
-            return;
-        }
-        try {
-            const barcodes = await barcodeDetector.detect(video);
-            if (barcodes.length > 0) {
-                const code = barcodes[0].rawValue;
-                if (code && code !== currentPendingCode) {
-                    // Найден код – останавливаем распознавание и показываем модалку
-                    scanningActive = false;
-                    currentPendingCode = code;
-                    pendingCodeSpan.textContent = code;
-                    confirmModal.style.display = 'flex';
-                    // Приостанавливаем видео? Нет, пусть висит, но детектор больше не вызываем, пока не закроют модалку.
-                    return;
+    function initQuagga() {
+        cameraDiv.style.display = 'flex';
+        const targetDiv = document.getElementById('interactive');
+        targetDiv.innerHTML = ''; // очищаем
+
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: targetDiv,
+                constraints: {
+                    facingMode: "environment",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
                 }
+            },
+            decoder: {
+                readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader"]
+            },
+            locate: true,
+            numOfWorkers: 2
+        }, function(err) {
+            if (err) {
+                console.error(err);
+                showMessage("Ошибка доступа к камере: " + err, true);
+                stopCamera();
+                return;
             }
-        } catch(e) { console.warn(e); }
-        if (scanningActive) requestAnimationFrame(scanFrame);
+            scannerActive = true;
+            Quagga.start();
+        });
+
+        Quagga.onDetected(function(result) {
+            if (!scannerActive) return;
+            const code = result.codeResult.code;
+            if (!code) return;
+            // Фильтр по длине (как раньше)
+            if (!/^\d{13}$/.test(code) && !/^\d{8}$/.test(code) && (code.length < 6 || code.length > 30)) {
+                // Игнорируем слишком короткие/длинные
+                return;
+            }
+            // Останавливаем распознавание, показываем модалку
+            scannerActive = false;
+            Quagga.stop();
+            currentPendingCode = code;
+            pendingCodeSpan.textContent = code;
+            confirmModal.style.display = 'flex';
+        });
     }
 
     // Подтверждение кода
@@ -365,17 +366,16 @@
         }
         confirmModal.style.display = 'none';
         currentPendingCode = null;
-        stopCamera();
+        stopCamera(); // закрываем камеру после подтверждения
     };
     document.getElementById('rejectBtn').onclick = () => {
         confirmModal.style.display = 'none';
         currentPendingCode = null;
-        // Перезапускаем сканирование (оставляем камеру открытой)
-        if (stream && !scanningActive) {
-            scanningActive = true;
-            requestAnimationFrame(scanFrame);
-        } else if (!stream) {
-            startScanner();
+        // Перезапускаем сканер (камера остаётся открытой)
+        if (!scannerActive) {
+            // Убеждаемся, что Quagga полностью остановлен
+            if (window.Quagga) Quagga.stop();
+            initQuagga();
         }
     };
     // Закрытие модалки по клику вне
@@ -383,9 +383,9 @@
         if (e.target === confirmModal) {
             confirmModal.style.display = 'none';
             currentPendingCode = null;
-            if (stream && !scanningActive) {
-                scanningActive = true;
-                requestAnimationFrame(scanFrame);
+            if (!scannerActive) {
+                if (window.Quagga) Quagga.stop();
+                initQuagga();
             }
         }
     });
@@ -405,7 +405,6 @@
                 const formatted = formatSearchResult(data);
                 showMessage(formatted, false);
             } else if (data.found === true) {
-                // fallback на латиницу
                 let info = `Штрихкод: ${data.barcode || barcode}\n`;
                 if (data.name) info += `Название: ${data.name}\n`;
                 if (data.model) info += `Модель: ${data.model}\n`;
@@ -415,6 +414,7 @@
                 showMessage(`❌ ${data.message || "Штрихкод не найден"}`, true);
             }
         } catch (err) {
+            console.error(err);
             showMessage("Ошибка соединения. Проверьте CORS и адрес вебхука.", true);
         }
     }
@@ -444,7 +444,7 @@
         }
     }
 
-    // === ОБРАБОТЧИКИ КНОПОК ===
+    // === ОБРАБОТЧИКИ ===
     searchBtn.onclick = () => searchBarcode(barcodeInput.value.trim());
     addBtn.onclick = () => {
         const cur = barcodeInput.value.trim();
