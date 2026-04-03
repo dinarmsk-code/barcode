@@ -11,7 +11,7 @@
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         }
         body {
-            background: #f5f7fb;
+            background: #272626;
             margin: 0;
             padding: 20px;
             display: flex;
@@ -22,20 +22,20 @@
         .container {
             max-width: 600px;
             width: 100%;
-            background: white;
+            background: #3d3d3d;
             border-radius: 32px;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
             padding: 24px 20px 32px;
         }
         h1 {
             font-size: 1.8rem;
             margin: 0 0 8px 0;
-            color: #1e293b;
+            color: #70e000;
         }
         .sub {
-            color: #475569;
+            color: #70e000;
             margin-bottom: 28px;
-            border-left: 3px solid #3b82f6;
+            border-left: 3px solid #ccff33;
             padding-left: 12px;
         }
         .barcode-field {
@@ -43,7 +43,7 @@
         }
         label {
             font-weight: 600;
-            color: #0f172a;
+            color: #70e000;
             display: block;
             margin-bottom: 8px;
         }
@@ -56,15 +56,21 @@
             flex: 1;
             padding: 14px 16px;
             font-size: 1rem;
-            border: 1px solid #cbd5e1;
+            border: 1px solid #9ef01a;
             border-radius: 24px;
-            background: white;
+            background: #272626;
+            color: #70e000;
             transition: 0.2s;
         }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #ccff33;
+            box-shadow: 0 0 0 3px rgba(204,255,51,0.2);
+        }
         button {
-            background: #3b82f6;
+            background: #ccff33;
             border: none;
-            color: white;
+            color: #3d3d3d;
             font-weight: 600;
             padding: 12px 20px;
             border-radius: 40px;
@@ -74,9 +80,9 @@
         }
         button:active { transform: scale(0.97); }
         .btn-outline {
-            background: white;
-            border: 1px solid #cbd5e1;
-            color: #1e293b;
+            background: transparent;
+            border: 1px solid #9ef01a;
+            color: #ccff33;
         }
         .action-buttons {
             display: flex;
@@ -85,18 +91,26 @@
             flex-wrap: wrap;
         }
         .result {
-            background: #f1f5f9;
+            background: #3d3d3d;
             border-radius: 24px;
             padding: 16px;
             margin-top: 24px;
             font-size: 0.9rem;
-            color: #0f172a;
-            border: 1px solid #e2e8f0;
+            color: #70e000;
+            border: 1px solid #ccff33;
             white-space: pre-wrap;
             font-family: monospace;
         }
-        .error { color: #b91c1c; background: #fee2e2; border-color: #fecaca; }
-        .success { color: #166534; background: #dcfce7; border-color: #bbf7d0; }
+        .error {
+            color: #b91c1c;
+            background: #fee2e2;
+            border-color: #fecaca;
+        }
+        .success {
+            color: #3d3d3d;
+            background: #38b000;
+            border-color: #007200;
+        }
         
         /* Модалки */
         .modal {
@@ -104,25 +118,28 @@
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.7);
             align-items: center;
             justify-content: center;
             z-index: 1000;
         }
         .modal-content {
-            background: white;
+            background: #3d3d3d;
             width: 90%;
             max-width: 480px;
             border-radius: 32px;
             padding: 24px;
             box-shadow: 0 20px 35px -10px black;
+            color: #70e000;
         }
         .modal-content input {
             width: 100%;
             margin-bottom: 12px;
             padding: 12px;
             border-radius: 16px;
-            border: 1px solid #ccc;
+            border: 1px solid #9ef01a;
+            background: #272626;
+            color: #70e000;
         }
         .modal-buttons {
             display: flex;
@@ -144,13 +161,11 @@
             justify-content: center;
             align-items: center;
         }
-        /* Контейнер для Quagga */
         #interactive {
             width: 100%;
             height: 100%;
             position: relative;
         }
-        /* Стили для видео и canvas, которые создаёт Quagga */
         #interactive video,
         #interactive canvas {
             position: absolute;
@@ -172,12 +187,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: #ccff33;
             font-size: 28px;
             font-weight: bold;
             cursor: pointer;
             z-index: 1200;
-            border: 1px solid rgba(255,255,255,0.3);
+            border: 1px solid #ccff33;
         }
         @media (max-width: 500px) {
             .close-camera-btn { width: 40px; height: 40px; font-size: 24px; }
@@ -200,7 +215,7 @@
 
     <div class="action-buttons">
         <button id="searchBtn">🔍 Найти</button>
-        <button id="addBtn" style="background:#10b981;">➕ Добавить</button>
+        <button id="addBtn" style="background:#70e000; color:#3d3d3d;">➕ Добавить</button>
     </div>
 
     <div id="resultBlock" class="result">
@@ -213,7 +228,7 @@
     <div class="modal-content">
         <h3>➕ Добавить товар</h3>
         <label>Штрихкод (основной)</label>
-        <input type="text" id="addBarcode" readonly style="background:#f1f5f9;">
+        <input type="text" id="addBarcode" readonly style="background:#3d3d3d; color:#70e000;">
         <label>Штрихкод коробки</label>
         <input type="text" id="addBoxBarcode" placeholder="Код коробки">
         <label>Название *</label>
@@ -224,25 +239,12 @@
         <input type="number" id="addQuantity" value="1">
         <div class="modal-buttons">
             <button id="modalCancel" class="btn-outline">Отмена</button>
-            <button id="modalSubmit" style="background:#10b981;">Сохранить</button>
+            <button id="modalSubmit" style="background:#70e000; color:#3d3d3d;">Сохранить</button>
         </div>
     </div>
 </div>
 
-<!-- Модалка подтверждения сканирования -->
-<div id="confirmModal" class="modal">
-    <div class="modal-content">
-        <h3>📸 Подтверждение кода</h3>
-        <p>Считан код:</p>
-        <p id="pendingCode" style="font-weight: bold; font-size: 1.2rem;"></p>
-        <div class="modal-buttons">
-            <button id="rejectBtn" class="btn-outline">❌ Отменить</button>
-            <button id="acceptBtn" style="background:#3b82f6;">✅ Использовать</button>
-        </div>
-    </div>
-</div>
-
-<!-- Видео-контейнер для Quagga -->
+<!-- Видео-контейнер -->
 <div id="cameraView" class="video-preview">
     <div id="interactive"></div>
     <div id="closeCameraBtn" class="close-camera-btn">✕</div>
@@ -261,13 +263,9 @@
     const resultBlock = document.getElementById('resultBlock');
     const addModal = document.getElementById('addModal');
     const cameraDiv = document.getElementById('cameraView');
-    const confirmModal = document.getElementById('confirmModal');
-    const pendingCodeSpan = document.getElementById('pendingCode');
 
     let scannerActive = false;
-    let currentPendingCode = null;
 
-    // === ФУНКЦИИ ===
     function showMessage(text, isError = false, isSuccess = false) {
         resultBlock.textContent = text;
         resultBlock.classList.remove('error', 'success');
@@ -284,21 +282,16 @@
         return lines.join('\n');
     }
 
-    // === ОСТАНОВКА КАМЕРЫ ===
     function stopCamera() {
         if (scannerActive) {
             Quagga.stop();
             scannerActive = false;
         }
         cameraDiv.style.display = 'none';
-        // Очищаем контейнер Quagga, чтобы не оставалось видео
         const interactive = document.getElementById('interactive');
         if (interactive) interactive.innerHTML = '';
-        confirmModal.style.display = 'none';
-        currentPendingCode = null;
     }
 
-    // === ЗАПУСК СКАНЕРА (QUAGGA) ===
     function startScanner() {
         if (scannerActive) {
             stopCamera();
@@ -311,7 +304,7 @@
     function initQuagga() {
         cameraDiv.style.display = 'flex';
         const targetDiv = document.getElementById('interactive');
-        targetDiv.innerHTML = ''; // очищаем
+        targetDiv.innerHTML = '';
 
         Quagga.init({
             inputStream: {
@@ -344,53 +337,18 @@
             if (!scannerActive) return;
             const code = result.codeResult.code;
             if (!code) return;
-            // Фильтр по длине (как раньше)
+            // фильтр длины
             if (!/^\d{13}$/.test(code) && !/^\d{8}$/.test(code) && (code.length < 6 || code.length > 30)) {
-                // Игнорируем слишком короткие/длинные
                 return;
             }
-            // Останавливаем распознавание, показываем модалку
-            scannerActive = false;
-            Quagga.stop();
-            currentPendingCode = code;
-            pendingCodeSpan.textContent = code;
-            confirmModal.style.display = 'flex';
+            // Автоматически вставляем код и закрываем камеру
+            barcodeInput.value = code;
+            showMessage(`✅ Считан код: ${code}`, false);
+            stopCamera();
         });
     }
 
-    // Подтверждение кода
-    document.getElementById('acceptBtn').onclick = () => {
-        if (currentPendingCode) {
-            barcodeInput.value = currentPendingCode;
-            showMessage(`✅ Считан код: ${currentPendingCode}`, false);
-        }
-        confirmModal.style.display = 'none';
-        currentPendingCode = null;
-        stopCamera(); // закрываем камеру после подтверждения
-    };
-    document.getElementById('rejectBtn').onclick = () => {
-        confirmModal.style.display = 'none';
-        currentPendingCode = null;
-        // Перезапускаем сканер (камера остаётся открытой)
-        if (!scannerActive) {
-            // Убеждаемся, что Quagga полностью остановлен
-            if (window.Quagga) Quagga.stop();
-            initQuagga();
-        }
-    };
-    // Закрытие модалки по клику вне
-    confirmModal.addEventListener('click', (e) => {
-        if (e.target === confirmModal) {
-            confirmModal.style.display = 'none';
-            currentPendingCode = null;
-            if (!scannerActive) {
-                if (window.Quagga) Quagga.stop();
-                initQuagga();
-            }
-        }
-    });
-
-    // === ПОИСК ===
+    // Поиск
     async function searchBarcode(barcode) {
         if (!barcode) { showMessage("Введите или считайте штрихкод", true); return; }
         showMessage("Поиск...", false);
@@ -402,8 +360,7 @@
             });
             const data = await response.json();
             if (data && data["Штрихкод"]) {
-                const formatted = formatSearchResult(data);
-                showMessage(formatted, false);
+                showMessage(formatSearchResult(data), false);
             } else if (data.found === true) {
                 let info = `Штрихкод: ${data.barcode || barcode}\n`;
                 if (data.name) info += `Название: ${data.name}\n`;
@@ -414,12 +371,11 @@
                 showMessage(`❌ ${data.message || "Штрихкод не найден"}`, true);
             }
         } catch (err) {
-            console.error(err);
             showMessage("Ошибка соединения. Проверьте CORS и адрес вебхука.", true);
         }
     }
 
-    // === ДОБАВЛЕНИЕ ===
+    // Добавление
     async function addBarcodeToDB(payload) {
         try {
             const response = await fetch(WEBHOOK_ADD, {
@@ -444,7 +400,7 @@
         }
     }
 
-    // === ОБРАБОТЧИКИ ===
+    // Обработчики
     searchBtn.onclick = () => searchBarcode(barcodeInput.value.trim());
     addBtn.onclick = () => {
         const cur = barcodeInput.value.trim();
