@@ -111,8 +111,6 @@
             background: #38b000;
             border-color: #007200;
         }
-        
-        /* Модалки */
         .modal {
             display: none;
             position: fixed;
@@ -147,8 +145,6 @@
             gap: 10px;
             margin-top: 20px;
         }
-        
-        /* Видео на весь экран */
         .video-preview {
             position: fixed;
             top: 0;
@@ -251,11 +247,10 @@
 </div>
 
 <script>
-    // === НАСТРОЙКИ (ЗАМЕНИТЕ НА ВАШИ URL) ===
-    const WEBHOOK_SEARCH = "https://din8n.ru/webhook-test/357fd427-59db-4b27-86c0-dbdd586e0dc6";
+    // === ЗАМЕНИТЕ НА ВАШИ URL ===
+    const WEBHOOK_SEARCH = "https://ваш-сервер.com/webhook-search";
     const WEBHOOK_ADD = "https://ваш-сервер.com/webhook-add";
 
-    // DOM элементы
     const barcodeInput = document.getElementById('barcodeInput');
     const scanBtn = document.getElementById('scanBtn');
     const searchBtn = document.getElementById('searchBtn');
@@ -265,6 +260,7 @@
     const cameraDiv = document.getElementById('cameraView');
 
     let scannerActive = false;
+    let lastScanTime = 0;
 
     function showMessage(text, isError = false, isSuccess = false) {
         resultBlock.textContent = text;
@@ -301,6 +297,23 @@
         }
     }
 
+    // Расширенный фильтр: поддерживает EAN-13, EAN-8, Code128 (4-20 символов, макс 30% букв), короткие цифровые коды (4-8 цифр)
+    function isValidBarcode(code) {
+        if (!code) return false;
+        // EAN-13: 13 цифр
+        if (/^\d{13}$/.test(code)) return true;
+        // EAN-8: 8 цифр
+        if (/^\d{8}$/.test(code)) return true;
+        // Code128: от 4 до 20 символов (цифры и буквы, но ограничим буквы)
+        if (code.length >= 4 && code.length <= 20) {
+            const alphaCount = (code.match(/[A-Za-z]/g) || []).length;
+            if (alphaCount <= code.length * 0.3) return true;
+        }
+        // Дополнительно: любые цифровые коды от 4 до 8 символов (коробки)
+        if (/^\d{4,8}$/.test(code)) return true;
+        return false;
+    }
+
     function initQuagga() {
         cameraDiv.style.display = 'flex';
         const targetDiv = document.getElementById('interactive');
@@ -315,13 +328,15 @@
                     facingMode: "environment",
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
-                }
+                },
+                area: { top: "0%", right: "0%", left: "0%", bottom: "0%" }
             },
             decoder: {
                 readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader"]
             },
             locate: true,
-            numOfWorkers: 2
+            numOfWorkers: 4,
+            frequency: 10
         }, function(err) {
             if (err) {
                 console.error(err);
@@ -335,13 +350,17 @@
 
         Quagga.onDetected(function(result) {
             if (!scannerActive) return;
+            const now = Date.now();
+            if (now - lastScanTime < 2000) return;
             const code = result.codeResult.code;
             if (!code) return;
-            // фильтр длины
-            if (!/^\d{13}$/.test(code) && !/^\d{8}$/.test(code) && (code.length < 6 || code.length > 30)) {
+
+            if (!isValidBarcode(code)) {
+                console.log("Игнорируем мусорный код:", code);
                 return;
             }
-            // Автоматически вставляем код и закрываем камеру
+
+            lastScanTime = now;
             barcodeInput.value = code;
             showMessage(`✅ Считан код: ${code}`, false);
             stopCamera();
