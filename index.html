@@ -332,7 +332,7 @@
                 area: { top: "0%", right: "0%", left: "0%", bottom: "0%" }
             },
             decoder: {
-                readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader"]
+                readers: ["code_128_reader"]
             },
             locate: true,
             numOfWorkers: 4,
@@ -353,18 +353,12 @@
             const now = Date.now();
             if (now - lastScanTime < 2000) return;
             const code = result.codeResult.code;
-            if (!code) return;
-
-            if (!isValidBarcode(code)) {
-                console.log("Игнорируем мусорный код:", code);
-                return;
-            }
-
+            if (!code) return;                     // Убрали вызов isValidBarcode(code)
             lastScanTime = now;
             barcodeInput.value = code;
             showMessage(`✅ Считан код: ${code}`, false);
             stopCamera();
-        });
+       });
     }
 
     // Поиск
